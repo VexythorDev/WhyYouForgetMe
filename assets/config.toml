@@ -1,0 +1,14 @@
+# WhyYouForgetMe - Configuração
+# Edite à vontade, sem precisar recompilar!
+
+# Tempo real por dia virtual (em segundos)
+# Padrão sugerido: 120.0 acordada, 30.0 dormindo
+# Original tamagotchi: 600.0 acordada, 150.0 dormindo
+secs_awake  = 10.0
+secs_asleep = 2.0
+
+# Dias sem água até a planta morrer
+days_to_die = 7
+
+# Nome da planta (deixe vazio "" para sortear um aleatório)
+name = ""
