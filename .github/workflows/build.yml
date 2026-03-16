@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ── Windows ──────────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
 
@@ -32,16 +33,12 @@ jobs:
         run: |
           vcpkg install sdl2:x64-windows sdl2-image:x64-windows sdl2-ttf:x64-windows
           echo "VCPKG_ROOT=C:/vcpkg" >> $env:GITHUB_ENV
-          echo "SDL2_LIB_DIR=C:/vcpkg/installed/x64-windows/lib" >> $env:GITHUB_ENV
-          echo "SDL2_INCLUDE_DIR=C:/vcpkg/installed/x64-windows/include/SDL2" >> $env:GITHUB_ENV
-          echo "LIBRARY_PATH=C:/vcpkg/installed/x64-windows/lib" >> $env:GITHUB_ENV
 
       - name: Build release
         run: cargo build --release --target x86_64-pc-windows-msvc
         env:
           VCPKGRS_DYNAMIC: "1"
-          SDL2_LIB_DIR: "C:/vcpkg/installed/x64-windows/lib"
-          SDL2_INCLUDE_DIR: "C:/vcpkg/installed/x64-windows/include/SDL2"
+          VCPKG_ROOT: "C:/vcpkg"
 
       - name: Copia DLLs SDL2
         run: |
@@ -58,11 +55,65 @@ jobs:
       - name: Upload instalador
         uses: actions/upload-artifact@v4
         with:
-          name: PlantaInstaller
+          name: PlantaInstaller-Windows
           path: dist/PlantaSetup.exe
 
-      - name: Release
+      - name: Release Windows
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/PlantaSetup.exe
+
+  # ── Linux ────────────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instala Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Instala SDL2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-ttf-dev
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Empacota tar.gz
+        run: |
+          mkdir -p package/assets/sprites
+          cp target/release/plant          package/
+          cp assets/banco.md               package/assets/
+          cp assets/config.toml            package/assets/
+          cp assets/sprites/*              package/assets/sprites/
+          cp install.sh                    package/
+          chmod +x package/install.sh
+          tar -czf WhyYouForgetMe-linux.tar.gz -C package .
+
+      - name: Upload tar.gz
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlantaInstaller-Linux
+          path: WhyYouForgetMe-linux.tar.gz
+
+      - name: Release Linux
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: WhyYouForgetMe-linux.tar.gz
