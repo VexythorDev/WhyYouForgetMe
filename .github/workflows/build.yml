@@ -1,0 +1,65 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instala Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Instala SDL2 via vcpkg
+        run: |
+          vcpkg install sdl2:x64-windows sdl2-image:x64-windows sdl2-ttf:x64-windows
+          echo "VCPKGRS_DYNAMIC=1" >> $env:GITHUB_ENV
+          echo "VCPKG_ROOT=C:/vcpkg" >> $env:GITHUB_ENV
+          echo "SDL2_DIR=C:/vcpkg/installed/x64-windows" >> $env:GITHUB_ENV
+
+      - name: Build release
+        run: cargo build --release --target x86_64-pc-windows-msvc
+        env:
+          VCPKGRS_DYNAMIC: "1"
+
+      - name: Copia DLLs SDL2
+        run: |
+          copy C:\vcpkg\installed\x64-windows\bin\SDL2.dll target\x86_64-pc-windows-msvc\release\
+          copy C:\vcpkg\installed\x64-windows\bin\SDL2_image.dll target\x86_64-pc-windows-msvc\release\
+          copy C:\vcpkg\installed\x64-windows\bin\SDL2_ttf.dll target\x86_64-pc-windows-msvc\release\
+
+      - name: Instala Inno Setup
+        run: choco install innosetup -y
+
+      - name: Gera instalador
+        run: iscc installer.iss
+
+      - name: Upload instalador
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlantaInstaller
+          path: dist/PlantaSetup.exe
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PlantaSetup.exe
